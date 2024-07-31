@@ -27,7 +27,7 @@
         }
         #dino {
             position: absolute;
-            bottom: 80px; /* Position the dino higher on the screen */
+            bottom: 80px;
             left: 50px;
             width: 50px;
             height: 50px;
@@ -36,7 +36,7 @@
         }
         .obstacle {
             position: absolute;
-            bottom: 80px; /* Position obstacles higher on the screen */
+            bottom: 80px;
             left: 100%;
             width: 50px;
             height: 50px;
@@ -57,26 +57,26 @@
             left: 20px;
             display: flex;
             align-items: center;
-            font-size: 10px; /* Smaller font size */
+            font-size: 10px;
             color: black;
         }
         #coin {
-            width: 20px; /* Adjust the size as needed */
-            height: 20px; /* Adjust the size as needed */
+            width: 20px;
+            height: 20px;
             margin-right: 5px;
         }
         #high-score {
             position: absolute;
             top: 20px;
             right: 20px;
-            font-size: 10px; /* Smaller font size */
+            font-size: 10px;
             color: black;
             display: flex;
             align-items: center;
         }
         #rank {
-            width: 20px; /* Adjust the size as needed */
-            height: 20px; /* Adjust the size as needed */
+            width: 20px;
+            height: 20px;
             margin-left: 5px;
         }
         #initialStartButton {
@@ -88,10 +88,20 @@
             font-size: 20px;
             cursor: pointer;
         }
+        #username-display {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: black;
+        }
     </style>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <div id="game">
+        <div id="username-display"></div>
         <div id="score-container">
             <img id="coin" src="coin.gif" alt="Coin">
             <div id="score">Score: 0</div>
@@ -124,12 +134,23 @@
         const jumpSound = document.getElementById('jumpSound');
         const hitSound = document.getElementById('hitSound');
         const rankImage = document.getElementById('rank');
+        const usernameDisplay = document.getElementById('username-display');
+
+        // Fetch username from the Telegram WebApp
+        if (window.Telegram?.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            const username = tg.initDataUnsafe?.user?.username || 'Guest';
+            usernameDisplay.textContent = username;
+        } else {
+            usernameDisplay.textContent = 'Guest';
+        }
 
         let isJumping = false;
-        let dinoBottom = 80; // Start with initial height
+        let dinoBottom = 80;
         let jumpHeight = 150;
-        let gravity = 5; // Increase gravity to make falling faster
-        let jumpSpeed = 15; // Speed of the jump
+        let gravity = 5;
+        let jumpSpeed = 15;
         let gameSpeed = 5;
         let gameInterval;
         let scoreInterval;
@@ -145,15 +166,15 @@
         function jump() {
             if (isJumping) return;
             isJumping = true;
-            jumpSound.play(); // Play jump sound
+            jumpSound.play();
             let peak = dinoBottom + jumpHeight;
             let jumpInterval = setInterval(() => {
                 if (dinoBottom >= peak) {
                     clearInterval(jumpInterval);
                     let fallInterval = setInterval(() => {
-                        if (dinoBottom <= 80) { // Ensure dino doesn't fall below initial position
+                        if (dinoBottom <= 80) {
                             clearInterval(fallInterval);
-                            dinoBottom = 80; // Reset to initial position
+                            dinoBottom = 80;
                             isJumping = false;
                         }
                         dinoBottom -= gravity;
@@ -166,7 +187,7 @@
         }
 
         function startGame() {
-            dinoBottom = 80; // Reset dino's position
+            dinoBottom = 80;
             score = 0;
             scoreDisplay.textContent = 'Score: ' + score;
             gameOver.style.display = 'none';
@@ -203,10 +224,10 @@
 
                 if (
                     obstaclePosition > 50 && obstaclePosition < 100 &&
-                    dinoBottom < 130 // Adjusted to match the height where collision should be detected
+                    dinoBottom < 130
                 ) {
                     clearInterval(obstacleMoveInterval);
-                    hitSound.play(); // Play hit sound
+                    hitSound.play();
                     gameOver.style.display = 'block';
                     startButton.style.display = 'block';
                     clearInterval(gameInterval);
@@ -230,7 +251,7 @@
         function moveBackground() {
             let offset = 0;
             setInterval(() => {
-                offset -= 0.05; // Slow movement speed
+                offset -= 0.05;
                 game.style.backgroundPosition = offset + 'px 0';
             }, 20);
         }
