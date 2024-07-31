@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
+import { useEffect, useState } from "react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -15,12 +16,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    const initData = window.Telegram.WebApp.initDataUnsafe;
+    if (initData?.user?.username) {
+      setUsername(initData.user.username);
+    }
+  }, []);
+
   return (
     <html lang="en">
       <head>
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {React.cloneElement(children, { username })}
+      </body>
     </html>
   );
 }
