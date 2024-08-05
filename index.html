@@ -125,6 +125,7 @@
     <audio id="gameMusic" src="Cat.mp3" loop></audio>
     <audio id="jumpSound" src="jump.mp3"></audio>
     <audio id="hitSound" src="hit.mp3"></audio>
+    <audio id="welcomeAudio" autoplay></audio>
 
     <script>
         const dino = document.getElementById('dino');
@@ -139,6 +140,7 @@
         const hitSound = document.getElementById('hitSound');
         const rankImage = document.getElementById('rank');
         const usernameDisplay = document.getElementById('username-display');
+        const welcomeAudio = document.getElementById('welcomeAudio');
 
         // Fetch username from the Telegram WebApp
         if (window.Telegram?.WebApp) {
@@ -147,13 +149,15 @@
             const username = tg.initDataUnsafe?.user?.username || 'Guest';
             usernameDisplay.textContent = username;
 
-            // Make an AJAX request to your Flask backend to get the speech URL
+            // Fetch the welcome message audio URL from the Flask server
             window.onload = () => {
-                fetch(`/speak?text=Welcome ${username}! Run ${username} Ruuuuuun`)
+                fetch(`/speak?text=Welcome%20${username}%20Run%20${username}%20Ruuuuuun`)
                     .then(response => response.json())
                     .then(data => {
-                        const audio = new Audio(data.url);
-                        audio.play();
+                        if (data.url) {
+                            welcomeAudio.src = data.url;
+                            welcomeAudio.play();
+                        }
                     });
             };
         } else {
@@ -207,13 +211,17 @@
             gameOver.style.display = 'none';
             startButton.style.display = 'none';
             initialStartButton.style.display = 'none';
-            isJumping = false;
-            obstacles.forEach(obstacle => game.removeChild(obstacle));
-            obstacles = [];
-            document.addEventListener('touchstart', jump);
-            gameInterval = setInterval(createObstacle, 2000);
-            scoreInterval = setInterval(updateScore, 100);
             gameMusic.play();
+            gameInterval = setInterval(gameLoop, 20);
+            scoreInterval = setInterval(updateScore, 1000);
+            document.addEventListener('keydown', control);
+            document.addEventListener('click', jump);
+        }
+
+        function control(e) {
+            if (e.keyCode === 32) {
+                jump();
+            }
         }
 
         function updateScore() {
@@ -221,56 +229,38 @@
             scoreDisplay.textContent = 'Score: ' + score;
         }
 
-        function createObstacle() {
-            let obstacle = document.createElement('div');
-            obstacle.classList.add('obstacle');
-            game.appendChild(obstacle);
-            obstacles.push(obstacle);
-            let obstaclePosition = game.clientWidth;
-            obstacle.style.left = obstaclePosition + 'px';
-
-            let obstacleMoveInterval = setInterval(() => {
-                if (obstaclePosition <= 0) {
-                    clearInterval(obstacleMoveInterval);
-                    game.removeChild(obstacle);
-                    obstacles = obstacles.filter(ob => ob !== obstacle);
-                }
-
-                if (
-                    obstaclePosition > 50 && obstaclePosition < 100 &&
-                    dinoBottom < 130
-                ) {
-                    clearInterval(obstacleMoveInterval);
-                    hitSound.play();
-                    gameOver.style.display = 'block';
-                    startButton.style.display = 'block';
-                    clearInterval(gameInterval);
-                    clearInterval(scoreInterval);
-                    document.removeEventListener('touchstart', jump);
-                    gameMusic.pause();
-                    gameMusic.currentTime = 0;
-
-                    if (score > highScore) {
-                        highScore = score;
-                        localStorage.setItem('highScore', highScore);
-                        highScoreDisplay.querySelector('div').textContent = 'High Score: ' + highScore;
-                    }
-                }
-
-                obstaclePosition -= gameSpeed;
-                obstacle.style.left = obstaclePosition + 'px';
-            }, 20);
+        function gameLoop() {
+            let obstacle = document.querySelector('.obstacle');
+            if (!obstacle) {
+                obstacle = document.createElement('div');
+                obstacle.classList.add('obstacle');
+                game.appendChild(obstacle);
+            }
+            let obstacleLeft = parseInt(window.getComputedStyle(obstacle).left);
+            if (obstacleLeft <= 0) {
+                obstacle.remove();
+            }
+            obstacle.style.left = (obstacleLeft - gameSpeed) + 'px';
+            if (obstacleLeft > 50 && obstacleLeft < 100 && dinoBottom < 130) {
+                gameOver();
+            }
         }
 
-        function moveBackground() {
-            let offset = 0;
-            setInterval(() => {
-                offset -= 0.05;
-                game.style.backgroundPosition = offset + 'px 0';
-            }, 20);
+        function gameOver() {
+            clearInterval(gameInterval);
+            clearInterval(scoreInterval);
+            gameMusic.pause();
+            hitSound.play();
+            gameOver.style.display = 'block';
+            startButton.style.display = 'block';
+            document.removeEventListener('keydown', control);
+            document.removeEventListener('click', jump);
+            if (score > highScore) {
+                localStorage.setItem('highScore', score);
+                highScore = score;
+                highScoreDisplay.querySelector('div').textContent = 'High Score: ' + highScore;
+            }
         }
-
-        moveBackground();
     </script>
 </body>
 </html>
