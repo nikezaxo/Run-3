@@ -101,7 +101,6 @@
             color: black;
         }
     </style>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <div id="game">
@@ -127,6 +126,35 @@
     <audio id="hitSound" src="hit.mp3"></audio>
 
     <script>
+        function fetchUsername() {
+            const queryParams = new URLSearchParams(window.location.search);
+            const username = queryParams.get('username');
+
+            if (username) {
+                // Display username
+                document.getElementById('username-display').textContent = `Welcome, ${username}!`;
+
+                // Fetch and play speech
+                fetch(`/speak/${username}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.url) {
+                            const audio = new Audio(data.url);
+                            audio.play().catch(error => {
+                                console.error('Error playing audio:', error);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching speech:', error);
+                    });
+            } else {
+                document.getElementById('username-display').textContent = 'Guest';
+            }
+        }
+
+        window.onload = fetchUsername;
+
         const dino = document.getElementById('dino');
         const game = document.getElementById('game');
         const gameOver = document.getElementById('gameOver');
@@ -191,80 +219,64 @@
             obstacles.forEach(obstacle => game.removeChild(obstacle));
             obstacles = [];
             document.addEventListener('touchstart', jump);
-            document.addEventListener('keydown', (e) => {
-                if (e.code === 'Space') jump();
-            });
+            gameInterval = setInterval(createObstacle, 2000);
+            scoreInterval = setInterval(updateScore, 100);
             gameMusic.play();
-            gameInterval = setInterval(() => {
-                moveObstacles();
-                detectCollision();
-            }, 20);
-            scoreInterval = setInterval(() => {
-                score++;
-                scoreDisplay.textContent = 'Score: ' + score;
-                if (score > highScore) {
-                    highScore = score;
-                    localStorage.setItem('highScore', highScore);
-                    highScoreDisplay.querySelector('div').textContent = 'High Score: ' + highScore;
-                }
-            }, 1000);
         }
 
-        function moveObstacles() {
-            obstacles.forEach(obstacle => {
-                let left = parseInt(obstacle.style.left, 10);
-                if (left < -50) {
+        function updateScore() {
+            score++;
+            scoreDisplay.textContent = 'Score: ' + score;
+        }
+
+        function createObstacle() {
+            let obstacle = document.createElement('div');
+            obstacle.classList.add('obstacle');
+            game.appendChild(obstacle);
+            obstacles.push(obstacle);
+            let obstaclePosition = game.clientWidth;
+            obstacle.style.left = obstaclePosition + 'px';
+
+            let obstacleMoveInterval = setInterval(() => {
+                if (obstaclePosition <= 0) {
+                    clearInterval(obstacleMoveInterval);
                     game.removeChild(obstacle);
-                    obstacles.shift();
-                } else {
-                    obstacle.style.left = (left - gameSpeed) + 'px';
+                    obstacles = obstacles.filter(o => o !== obstacle);
                 }
-            });
-            if (Math.random() < 0.02) {
-                let obstacle = document.createElement('div');
-                obstacle.className = 'obstacle';
-                obstacle.style.left = '100%';
-                game.appendChild(obstacle);
-                obstacles.push(obstacle);
+                obstaclePosition -= gameSpeed;
+                obstacle.style.left = obstaclePosition + 'px';
+
+                if (isCollision(dino, obstacle)) {
+                    endGame();
+                }
+            }, 20);
+        }
+
+        function isCollision(dino, obstacle) {
+            const dinoRect = dino.getBoundingClientRect();
+            const obstacleRect = obstacle.getBoundingClientRect();
+
+            return !(dinoRect.right < obstacleRect.left ||
+                     dinoRect.left > obstacleRect.right ||
+                     dinoRect.bottom < obstacleRect.top ||
+                     dinoRect.top > obstacleRect.bottom);
+        }
+
+        function endGame() {
+            clearInterval(gameInterval);
+            clearInterval(scoreInterval);
+            gameMusic.pause();
+            gameOver.style.display = 'block';
+            startButton.style.display = 'block';
+            initialStartButton.style.display = 'none';
+            document.removeEventListener('touchstart', jump);
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('highScore', highScore);
+                highScoreDisplay.querySelector('div').textContent = 'High Score: ' + highScore;
             }
         }
-
-        function detectCollision() {
-            let dinoRect = dino.getBoundingClientRect();
-            obstacles.forEach(obstacle => {
-                let obstacleRect = obstacle.getBoundingClientRect();
-                if (dinoRect.right > obstacleRect.left &&
-                    dinoRect.left < obstacleRect.right &&
-                    dinoRect.bottom > obstacleRect.top &&
-                    dinoRect.top < obstacleRect.bottom) {
-                    gameOver.style.display = 'block';
-                    startButton.style.display = 'block';
-                    clearInterval(gameInterval);
-                    clearInterval(scoreInterval);
-                    gameMusic.pause();
-                    hitSound.play();
-                    document.removeEventListener('touchstart', jump);
-                    document.removeEventListener('keydown', (e) => {
-                        if (e.code === 'Space') jump();
-                    });
-                }
-            });
-        }
-
-        // Fetch and display username
-        function fetchUsername() {
-            const queryParams = new URLSearchParams(window.location.search);
-            const username = queryParams.get('username');
-            if (username) {
-                usernameDisplay.textContent = `Welcome, ${username}!`;
-                const audio = new Audio(`/speak/${username}`);
-                audio.play().catch(error => {
-                    console.error('Error playing audio:', error);
-                });
-            }
-        }
-
-        window.onload = fetchUsername;
     </script>
 </body>
 </html>
