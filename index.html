@@ -101,6 +101,7 @@
             color: black;
         }
     </style>
+    <script src="https://code.responsivevoice.org/responsivevoice.js?key=KWvqsfR5"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -146,6 +147,11 @@
             tg.ready();
             const username = tg.initDataUnsafe?.user?.username || 'Guest';
             usernameDisplay.textContent = username;
+
+            // Speak the welcome message and username when the page loads
+            window.onload = () => {
+                responsiveVoice.speak(`Welcome ${username}! Run ${username} Ruuuuuun`);
+            };
         } else {
             usernameDisplay.textContent = 'Guest';
         }
