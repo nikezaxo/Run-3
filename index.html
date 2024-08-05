@@ -140,30 +140,6 @@
         const rankImage = document.getElementById('rank');
         const usernameDisplay = document.getElementById('username-display');
 
-        // Fetch username from the Telegram WebApp
-        if (window.Telegram?.WebApp) {
-            const tg = window.Telegram.WebApp;
-            tg.ready();
-            const username = tg.initDataUnsafe?.user?.username || 'Guest';
-            usernameDisplay.textContent = username;
-
-            // Fetch and play the welcome message when the page loads
-            window.onload = () => {
-                if (username && username !== 'Guest') {
-                    fetch(`/speak/${username}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            const audioUrl = data.audio_url;
-                            const audio = new Audio(audioUrl);
-                            audio.play();
-                        })
-                        .catch(error => console.error('Error:', error));
-                }
-            };
-        } else {
-            usernameDisplay.textContent = 'Guest';
-        }
-
         let isJumping = false;
         let dinoBottom = 80;
         let jumpHeight = 150;
@@ -274,6 +250,21 @@
                 }
             });
         }
+
+        // Fetch and display username
+        function fetchUsername() {
+            const queryParams = new URLSearchParams(window.location.search);
+            const username = queryParams.get('username');
+            if (username) {
+                usernameDisplay.textContent = `Welcome, ${username}!`;
+                const audio = new Audio(`/speak/${username}`);
+                audio.play().catch(error => {
+                    console.error('Error playing audio:', error);
+                });
+            }
+        }
+
+        window.onload = fetchUsername;
     </script>
 </body>
 </html>
