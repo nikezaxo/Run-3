@@ -101,6 +101,7 @@
             color: black;
         }
     </style>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <div id="game">
@@ -126,35 +127,6 @@
     <audio id="hitSound" src="hit.mp3"></audio>
 
     <script>
-        function fetchUsername() {
-            const queryParams = new URLSearchParams(window.location.search);
-            const username = queryParams.get('username');
-
-            if (username) {
-                // Display username
-                document.getElementById('username-display').textContent = `Welcome, ${username}!`;
-
-                // Fetch and play speech
-                fetch(`/speak/${username}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.url) {
-                            const audio = new Audio(data.url);
-                            audio.play().catch(error => {
-                                console.error('Error playing audio:', error);
-                            });
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching speech:', error);
-                    });
-            } else {
-                document.getElementById('username-display').textContent = 'Guest';
-            }
-        }
-
-        window.onload = fetchUsername;
-
         const dino = document.getElementById('dino');
         const game = document.getElementById('game');
         const gameOver = document.getElementById('gameOver');
@@ -167,6 +139,16 @@
         const hitSound = document.getElementById('hitSound');
         const rankImage = document.getElementById('rank');
         const usernameDisplay = document.getElementById('username-display');
+
+        // Fetch username from the Telegram WebApp
+        if (window.Telegram?.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            const username = tg.initDataUnsafe?.user?.username || 'Guest';
+            usernameDisplay.textContent = username;
+        } else {
+            usernameDisplay.textContent = 'Guest';
+        }
 
         let isJumping = false;
         let dinoBottom = 80;
@@ -241,42 +223,44 @@
                 if (obstaclePosition <= 0) {
                     clearInterval(obstacleMoveInterval);
                     game.removeChild(obstacle);
-                    obstacles = obstacles.filter(o => o !== obstacle);
+                    obstacles = obstacles.filter(ob => ob !== obstacle);
                 }
+
+                if (
+                    obstaclePosition > 50 && obstaclePosition < 100 &&
+                    dinoBottom < 130
+                ) {
+                    clearInterval(obstacleMoveInterval);
+                    hitSound.play();
+                    gameOver.style.display = 'block';
+                    startButton.style.display = 'block';
+                    clearInterval(gameInterval);
+                    clearInterval(scoreInterval);
+                    document.removeEventListener('touchstart', jump);
+                    gameMusic.pause();
+                    gameMusic.currentTime = 0;
+
+                    if (score > highScore) {
+                        highScore = score;
+                        localStorage.setItem('highScore', highScore);
+                        highScoreDisplay.querySelector('div').textContent = 'High Score: ' + highScore;
+                    }
+                }
+
                 obstaclePosition -= gameSpeed;
                 obstacle.style.left = obstaclePosition + 'px';
-
-                if (isCollision(dino, obstacle)) {
-                    endGame();
-                }
             }, 20);
         }
 
-        function isCollision(dino, obstacle) {
-            const dinoRect = dino.getBoundingClientRect();
-            const obstacleRect = obstacle.getBoundingClientRect();
-
-            return !(dinoRect.right < obstacleRect.left ||
-                     dinoRect.left > obstacleRect.right ||
-                     dinoRect.bottom < obstacleRect.top ||
-                     dinoRect.top > obstacleRect.bottom);
+        function moveBackground() {
+            let offset = 0;
+            setInterval(() => {
+                offset -= 0.05;
+                game.style.backgroundPosition = offset + 'px 0';
+            }, 20);
         }
 
-        function endGame() {
-            clearInterval(gameInterval);
-            clearInterval(scoreInterval);
-            gameMusic.pause();
-            gameOver.style.display = 'block';
-            startButton.style.display = 'block';
-            initialStartButton.style.display = 'none';
-            document.removeEventListener('touchstart', jump);
-
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('highScore', highScore);
-                highScoreDisplay.querySelector('div').textContent = 'High Score: ' + highScore;
-            }
-        }
+        moveBackground();
     </script>
 </body>
 </html>
