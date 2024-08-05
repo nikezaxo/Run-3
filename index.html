@@ -125,7 +125,6 @@
     <audio id="gameMusic" src="Cat.mp3" loop></audio>
     <audio id="jumpSound" src="jump.mp3"></audio>
     <audio id="hitSound" src="hit.mp3"></audio>
-    <audio id="welcomeAudio" autoplay></audio>
 
     <script>
         const dino = document.getElementById('dino');
@@ -140,7 +139,6 @@
         const hitSound = document.getElementById('hitSound');
         const rankImage = document.getElementById('rank');
         const usernameDisplay = document.getElementById('username-display');
-        const welcomeAudio = document.getElementById('welcomeAudio');
 
         // Fetch username from the Telegram WebApp
         if (window.Telegram?.WebApp) {
@@ -149,16 +147,18 @@
             const username = tg.initDataUnsafe?.user?.username || 'Guest';
             usernameDisplay.textContent = username;
 
-            // Fetch the welcome message audio URL from the Flask server
+            // Fetch and play the welcome message when the page loads
             window.onload = () => {
-                fetch(`/speak?text=Welcome%20${username}%20Run%20${username}%20Ruuuuuun`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.url) {
-                            welcomeAudio.src = data.url;
-                            welcomeAudio.play();
-                        }
-                    });
+                if (username && username !== 'Guest') {
+                    fetch(`/speak/${username}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const audioUrl = data.audio_url;
+                            const audio = new Audio(audioUrl);
+                            audio.play();
+                        })
+                        .catch(error => console.error('Error:', error));
+                }
             };
         } else {
             usernameDisplay.textContent = 'Guest';
@@ -211,55 +211,68 @@
             gameOver.style.display = 'none';
             startButton.style.display = 'none';
             initialStartButton.style.display = 'none';
+            isJumping = false;
+            obstacles.forEach(obstacle => game.removeChild(obstacle));
+            obstacles = [];
+            document.addEventListener('touchstart', jump);
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') jump();
+            });
             gameMusic.play();
-            gameInterval = setInterval(gameLoop, 20);
-            scoreInterval = setInterval(updateScore, 1000);
-            document.addEventListener('keydown', control);
-            document.addEventListener('click', jump);
+            gameInterval = setInterval(() => {
+                moveObstacles();
+                detectCollision();
+            }, 20);
+            scoreInterval = setInterval(() => {
+                score++;
+                scoreDisplay.textContent = 'Score: ' + score;
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('highScore', highScore);
+                    highScoreDisplay.querySelector('div').textContent = 'High Score: ' + highScore;
+                }
+            }, 1000);
         }
 
-        function control(e) {
-            if (e.keyCode === 32) {
-                jump();
-            }
-        }
-
-        function updateScore() {
-            score++;
-            scoreDisplay.textContent = 'Score: ' + score;
-        }
-
-        function gameLoop() {
-            let obstacle = document.querySelector('.obstacle');
-            if (!obstacle) {
-                obstacle = document.createElement('div');
-                obstacle.classList.add('obstacle');
+        function moveObstacles() {
+            obstacles.forEach(obstacle => {
+                let left = parseInt(obstacle.style.left, 10);
+                if (left < -50) {
+                    game.removeChild(obstacle);
+                    obstacles.shift();
+                } else {
+                    obstacle.style.left = (left - gameSpeed) + 'px';
+                }
+            });
+            if (Math.random() < 0.02) {
+                let obstacle = document.createElement('div');
+                obstacle.className = 'obstacle';
+                obstacle.style.left = '100%';
                 game.appendChild(obstacle);
-            }
-            let obstacleLeft = parseInt(window.getComputedStyle(obstacle).left);
-            if (obstacleLeft <= 0) {
-                obstacle.remove();
-            }
-            obstacle.style.left = (obstacleLeft - gameSpeed) + 'px';
-            if (obstacleLeft > 50 && obstacleLeft < 100 && dinoBottom < 130) {
-                gameOver();
+                obstacles.push(obstacle);
             }
         }
 
-        function gameOver() {
-            clearInterval(gameInterval);
-            clearInterval(scoreInterval);
-            gameMusic.pause();
-            hitSound.play();
-            gameOver.style.display = 'block';
-            startButton.style.display = 'block';
-            document.removeEventListener('keydown', control);
-            document.removeEventListener('click', jump);
-            if (score > highScore) {
-                localStorage.setItem('highScore', score);
-                highScore = score;
-                highScoreDisplay.querySelector('div').textContent = 'High Score: ' + highScore;
-            }
+        function detectCollision() {
+            let dinoRect = dino.getBoundingClientRect();
+            obstacles.forEach(obstacle => {
+                let obstacleRect = obstacle.getBoundingClientRect();
+                if (dinoRect.right > obstacleRect.left &&
+                    dinoRect.left < obstacleRect.right &&
+                    dinoRect.bottom > obstacleRect.top &&
+                    dinoRect.top < obstacleRect.bottom) {
+                    gameOver.style.display = 'block';
+                    startButton.style.display = 'block';
+                    clearInterval(gameInterval);
+                    clearInterval(scoreInterval);
+                    gameMusic.pause();
+                    hitSound.play();
+                    document.removeEventListener('touchstart', jump);
+                    document.removeEventListener('keydown', (e) => {
+                        if (e.code === 'Space') jump();
+                    });
+                }
+            });
         }
     </script>
 </body>
